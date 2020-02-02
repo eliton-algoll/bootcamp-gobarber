@@ -1,9 +1,11 @@
 import * as Yup from 'yup';
-import { startOfHour, parseISO, isBefore } from 'date-fns';
+import pt from 'date-fns/locale/pt';
+import { startOfHour, parseISO, isBefore, format } from 'date-fns';
 
 import Appointment from '../models/Appointment';
 import User from '../models/User';
 import File from '../models/File';
+import Notification from '../schemas/Notifications';
 
 class AppointmentController {
   async index(req, res) {
@@ -50,6 +52,12 @@ class AppointmentController {
 
     const { provider_id, date } = req.body;
 
+    if (provider_id === req.userId) {
+      return res
+        .status(400)
+        .json({ error: 'User and provider cannot be the same' });
+    }
+
     // verifica se o provider_id é realmente um provider
     const isProvider = await User.findOne({
       where: {
@@ -71,7 +79,7 @@ class AppointmentController {
       return res.status(400).json({ error: 'Past dates are not permitted' });
     }
 
-    // validando horaio disponivel
+    // validando horario disponivel
     const checkAvailability = await Appointment.findOne({
       where: {
         provider_id,
@@ -90,6 +98,18 @@ class AppointmentController {
       user_id: req.userId,
       provider_id,
       date: hourStart,
+    });
+
+    // formatando data
+    const user = await User.findByPk(req.userId);
+    const formatedDate = format(hourStart, "'dia' d 'de' MMMM', às' H:mm'h'", {
+      locale: pt,
+    });
+
+    // salvando notificação
+    await Notification.create({
+      content: `Novo agendamento de ${user.name} para ${formatedDate}`,
+      user: req.userId,
     });
 
     return res.json(appointment);

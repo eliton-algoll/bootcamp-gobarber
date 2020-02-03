@@ -1,6 +1,6 @@
 import * as Yup from 'yup';
 import pt from 'date-fns/locale/pt';
-import { startOfHour, parseISO, isBefore, format, subHours } from 'date-fns';
+import { startOfHour, parseISO, isBefore, format } from 'date-fns';
 
 import Appointment from '../models/Appointment';
 import User from '../models/User';
@@ -18,7 +18,7 @@ class AppointmentController {
     const appointments = await Appointment.findAll({
       where: { user_id: req.userId, canceled_at: null },
       order: ['date'],
-      attributes: ['id', 'date'],
+      attributes: ['id', 'date', 'past', 'cancelable'],
       // paginação
       limit: 20,
       offset: (page - 1) * 20,
@@ -132,9 +132,7 @@ class AppointmentController {
       });
     }
 
-    const dateWithSub = subHours(appointment.date, 2);
-
-    if (isBefore(dateWithSub, new Date())) {
+    if (appointment.cancelable === false) {
       return res.status(401).json({
         error: 'Yout can only cancel appointments 2 hours in advance',
       });
